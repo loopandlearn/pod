@@ -31,23 +31,25 @@ func (r *DetailedStatusResponse) Marshal() ([]byte, error) {
 	// PodProgress
 	if r.FaultEvent == 0 {
 		response[3] = byte(r.PodProgress)
+
+		// Delivery bits
+		response[4] = 0 // suspended
+		if r.ExtendedBolusActive {
+			// extended bolus bit exclusive of bolus active bit
+			response[4] |= 0b1000
+		} else if r.BolusActive {
+			response[4] |= 0b0100
+		}
+		if r.TempBasalActive {
+			// temp basal active bit exclusive of basal active bit
+			response[4] |= 0b0010
+		} else if r.BasalActive {
+			response[4] |= 0b0001
+		}
+
 	} else {
 		response[3] = PodProgressFault
-	}
-
-	// Delivery bits
-	response[4] = 0 // suspended
-	if r.ExtendedBolusActive {
-		// extended bolus bit exclusive of bolus active bit
-		response[4] |= 0b1000
-	} else if r.BolusActive {
-		response[4] |= 0b0100
-	}
-	if r.TempBasalActive {
-		// temp basal active bit exclusive of basal active bit
-		response[4] |= 0b0010
-	} else if r.BasalActive {
-		response[4] |= 0b0001
+		response[4] = 0  // suspended
 	}
 
 	// Bolus remaining pulses
