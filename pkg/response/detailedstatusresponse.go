@@ -24,16 +24,27 @@ func (r *DetailedStatusResponse) Marshal() ([]byte, error) {
 
 	// OFF 1  2  3  4  5 6  7  8 9 10 1112 1314 1516 17 18 19 20 21 2223
 	// 02 16 02 0J 0K LLLL MM NNNN PP QQQQ RRRR SSSS TT UU VV WW XX YYYY
-	// 02 16 02 08 02 0000 00 01b2 00 0000 03ff 01cc 00 00 00 00 00 0000
+	// 02 16 02 0d 00 0000 00 01b2 00 0000 03ff 01cc 00 00 00 00 00 0000
 
-	response, _ := hex.DecodeString("021602080200000001b200000003ff01cc00000000000000")
+	response, _ := hex.DecodeString("0216020d0000000001b200000003ff01cc00000000000000")
 
-	// PodProgress
+	// This function is called in response to a fault
+	//   or a getStatus Type 2, e.g., Pod Diagnostics, Read Pod Status
+
+	// The default hex string, above, indicates a suspended pod with a fault
+	//   In other words the bytes in response default to:
+	//     3 is set to 13 (fault)
+	//     4 is set to 00 (suspended)
+	//    19 will be updated to indicate pod progress immediately before the fault
+
+	// This function is organized by working through the bytes in order
+	//  and changing those that are updated by current state of the pod
+
+	// Handle bytes 3 and 4 when a FaultEvent did not occur
 	if r.FaultEvent == 0 {
 		response[3] = byte(r.PodProgress)
 
 		// Delivery bits
-		response[4] = 0 // suspended
 		if r.ExtendedBolusActive {
 			// extended bolus bit exclusive of bolus active bit
 			response[4] |= 0b1000
@@ -46,10 +57,6 @@ func (r *DetailedStatusResponse) Marshal() ([]byte, error) {
 		} else if r.BasalActive {
 			response[4] |= 0b0001
 		}
-
-	} else {
-		response[3] = PodProgressFault
-		response[4] = 0  // suspended
 	}
 
 	// Bolus remaining pulses
@@ -86,6 +93,7 @@ func (r *DetailedStatusResponse) Marshal() ([]byte, error) {
 	// Set active alert slot bits
 	response[17] = r.Alerts
 
+	// Handle byte 19 for a FaultEvent
 	if r.FaultEvent != 0 {
 		// previous PodProgress returned in low nibble of VV byte
 		response[19] = byte(r.PodProgress) & 0b1111
