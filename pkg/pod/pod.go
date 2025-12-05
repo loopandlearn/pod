@@ -471,6 +471,14 @@ func (p *Pod) handleCommand(cmd command.Command) {
 		}
 	}
 
+	if p.state.PodProgress == response.PodProgressRunningAbove50U {
+		// transition PodProgress when reservoir is below 50 / 0.05 = 1000 pulses
+		if p.state.Reservoir <= 1000 {
+			log.Infof("*** Advancing progress to PodProgressRunningBelow50U based on reservoir value")
+			p.state.PodProgress = response.PodProgressRunningBelow50U
+		}
+	}
+
 	if crashBeforeProcessingCommand && cmd.DoesMutatePodState() {
 		log.Fatalf("pkg pod; Crashing before processing command with sequence %d", cmd.GetSeq())
 	}
